@@ -27,9 +27,17 @@ import sys
 
 from pydantic import BaseModel
 
-from freecad_validator.scorers.geometry import HeuristicGeometryScorer
+from freecad_validator.comparators.geometry import GeometryTolerances
+from freecad_validator.consistency.checker import SpecTolerances
+from freecad_validator.scorers.geometry import (
+    HeuristicGeometryScorer,
+    add_tolerance_arguments,
+    tolerances_from_args,
+)
 from freecad_validator.scorers.spec_consistency import (
     HeuristicSpecConsistencyScorer,
+    add_spec_tolerance_arguments,
+    spec_tolerances_from_args,
 )
 
 
@@ -62,17 +70,12 @@ class HeuristicValidator:
     def __init__(
         self,
         *,
-        mass_tolerance: float | None = None,
-        tol_scalar: float = 0.01,
-        tol_pos: float = 0.01,
+        geom_tolerances: GeometryTolerances | None = None,
+        spec_tolerances: SpecTolerances | None = None,
     ):
-        geom_kwargs = {}
-        if mass_tolerance is not None:
-            geom_kwargs["mass_tolerance"] = mass_tolerance
-        self._geometry_scorer = HeuristicGeometryScorer(**geom_kwargs)
+        self._geometry_scorer = HeuristicGeometryScorer(tolerances=geom_tolerances)
         self._spec_scorer = HeuristicSpecConsistencyScorer(
-            tol_scalar=tol_scalar,
-            tol_pos=tol_pos,
+            tolerances=spec_tolerances,
         )
 
     def validate(
@@ -102,21 +105,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("candidate_fcstd", help="Path to the candidate .FCStd")
     parser.add_argument("reference_fcstd", help="Path to the reference .FCStd")
     parser.add_argument("spec_json", help="Path to the spec .json")
-    parser.add_argument("--mass-tolerance", type=float, default=None,
-                        help="Volume matched relative tolerance for the "
-                             "geometry scorer (default: scorer's own).")
-    parser.add_argument("--tol-scalar", type=float, default=0.01)
-    parser.add_argument("--tol-pos", type=float, default=0.01)
     parser.add_argument("--json", dest="emit_json", action="store_true",
                         help="emit the result as JSON on stdout")
+    add_tolerance_arguments(parser)
+    add_spec_tolerance_arguments(parser)
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     result = HeuristicValidator(
-        mass_tolerance=args.mass_tolerance,
-        tol_scalar=args.tol_scalar,
-        tol_pos=args.tol_pos,
+        geom_tolerances=tolerances_from_args(args),
+        spec_tolerances=spec_tolerances_from_args(args),
     ).validate(
         candidate_fcstd=args.candidate_fcstd,
         reference_fcstd=args.reference_fcstd,
