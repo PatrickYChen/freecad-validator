@@ -22,6 +22,14 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from freecad_validator import Validator
+from freecad_validator.scorers.geometry import (
+    add_tolerance_arguments,
+    tolerances_from_args,
+)
+from freecad_validator.scorers.spec_consistency import (
+    add_spec_tolerance_arguments,
+    spec_tolerances_from_args,
+)
 
 # ---------------------------------------------------------------------------
 # `validate` — score one (candidate, reference, spec) triple
@@ -32,16 +40,17 @@ def _add_validate_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("candidate_fcstd", help="path to the candidate .FCStd")
     p.add_argument("reference_fcstd", help="path to the reference .FCStd")
     p.add_argument("spec_json", help="path to the spec .json")
-    p.add_argument("--tol-scalar", type=float, default=0.01,
-                   help="relative tolerance for scalar comparisons (default 0.01)")
-    p.add_argument("--tol-pos", type=float, default=0.01,
-                   help="position tolerance as fraction of OBB diagonal (default 0.01)")
+    add_tolerance_arguments(p)
+    add_spec_tolerance_arguments(p)
     p.add_argument("--json", dest="emit_json", action="store_true",
                    help="emit the result as JSON on stdout")
 
 
 def _run_validate(args: argparse.Namespace) -> int:
-    validator = Validator(tol_scalar=args.tol_scalar, tol_pos=args.tol_pos)
+    validator = Validator(
+        geom_tolerances=tolerances_from_args(args),
+        spec_tolerances=spec_tolerances_from_args(args),
+    )
     result = validator.validate(
         candidate_fcstd=args.candidate_fcstd,
         reference_fcstd=args.reference_fcstd,
@@ -72,8 +81,8 @@ def _add_batch_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--output-summary", type=Path, default=None,
                    help="aggregate summary JSON "
                         "(default: <sample-data-dir>/validation_summary.json)")
-    p.add_argument("--tol-scalar", type=float, default=0.01)
-    p.add_argument("--tol-pos", type=float, default=0.01)
+    add_tolerance_arguments(p)
+    add_spec_tolerance_arguments(p)
 
 
 def _stats(values: list[float]) -> dict:
@@ -156,7 +165,10 @@ def _run_batch(args: argparse.Namespace) -> int:
     out_csv = args.output_csv or args.sample_data_dir / "validation_results.csv"
     out_json = args.output_summary or args.sample_data_dir / "validation_summary.json"
 
-    validator = Validator(tol_scalar=args.tol_scalar, tol_pos=args.tol_pos)
+    validator = Validator(
+        geom_tolerances=tolerances_from_args(args),
+        spec_tolerances=spec_tolerances_from_args(args),
+    )
     rows = []
     geom_scores: list[float] = []
     spec_scores: list[float] = []
