@@ -53,12 +53,14 @@ _NUMBER_PATTERN = r"-?\d+(?:\.\d+)?"
 _SCALAR_RE = re.compile(
     rf"^\s*(?P<num>{_NUMBER_PATTERN})\s*(?P<unit>{_UNIT_PATTERN})?",
 )
-# Leading markdown noise: "- ", "* ", "• ", or "**bold**:" prefix.
-# Strip an optional bullet prefix and an optional `**header**:` label
-# (the colon is required — without it `**...**` is treated as bold-wrapped
-# key text, not a section header, so we don't accidentally consume the
-# param name on lines like `**drum_outer_diameter** = 280mm`).
-_LEAD_RE = re.compile(r"^\s*(?:[-*•]\s*)?(?:\*\*[^*]*\*\*\s*:\s*)?")
+# Leading markdown noise: "- ", "-- ", "* ", "** ", "• ", or "**bold**:" prefix.
+# Strip an optional bullet prefix (one or more bullet chars, to handle nested
+# sub-bullets like `-- key = value` used in some hand-edited specs) and an
+# optional `**header**:` label (the colon is required — without it `**...**`
+# is treated as bold-wrapped key text, not a section header, so we don't
+# accidentally consume the param name on lines like
+# `**drum_outer_diameter** = 280mm`).
+_LEAD_RE = re.compile(r"^\s*(?:[-*•]+\s*)?(?:\*\*[^*]*\*\*\s*:\s*)?")
 # First identifier in a chunk.
 _KEY_RE = re.compile(r"^\s*(?P<key>[a-z][a-z0-9_]*)\s*")
 

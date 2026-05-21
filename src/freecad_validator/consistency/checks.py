@@ -447,6 +447,12 @@ class CountCheck(ParamCheck):
         # same shape — ladder rungs, mounting bosses, slot arrays.
         # Also: staircase profile (2N+2 line signature — N pairs of
         # tread+riser plus back+bottom edges).
+        # Also: parallel / straight-sided spline-tooth ring — a closed
+        # castellated profile around the shaft where each tooth
+        # contributes 2 lines (one tooth-side + one tooth-top, alternating
+        # with the gap pair). 100 teeth → 200 lines, no closing edges,
+        # so the count is N/2 (vs the staircase's (N−2)/2). This is the
+        # Straight-Sided / Parallel spline-tooth standard.
         for sp in bank.sketch_profiles:
             n_lines = len(sp.line_lengths)
             if n_lines >= 8 and n_lines % 4 == 0 and n_lines <= 200:
@@ -458,6 +464,14 @@ class CountCheck(ParamCheck):
                 cands.append((
                     (n_lines - 2) // 2,
                     f"{sp.name} staircase tier count (({n_lines} − 2) ÷ 2)",
+                ))
+            # Floor at 12 lines (≥ 6 teeth, the minimum that's plausibly a
+            # tooth ring vs e.g. a 4–8 line airfoil/blade-profile sketch
+            # that would otherwise yield a false-positive tooth count).
+            if n_lines >= 12 and n_lines % 2 == 0 and n_lines <= 400:
+                cands.append((
+                    n_lines // 2,
+                    f"{sp.name} parallel-tooth count ({n_lines} lines ÷ 2)",
                 ))
         return cands
 

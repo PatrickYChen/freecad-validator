@@ -35,6 +35,8 @@ Uses token-based key classification like gear / spline categories.
 """
 from __future__ import annotations
 
+import math
+
 from freecad_validator.consistency.categories.base import Category
 from freecad_validator.measurement.schema import MeasurementBank
 from freecad_validator.spec.parser import StructuredSpec
@@ -130,6 +132,48 @@ def derived_candidates(
             if prop in entry.properties:
                 length_cands.append((entry.properties[prop], f"{entry.name}.{prop}"))
 
+    # Keyway depth derived from bore-chord geometry. A keyway cut into a
+    # circular bore is sketched as: one bore-arc CircleRadius (R) + a
+    # closed polyline forming the slot. For a single keyway the polyline
+    # contributes 3 lines (two side walls of length `s` + one floor of
+    # length `W`); two opposed keyways contribute 6 (the pattern doubled).
+    # The opening chord of length W sits on the bore at offset
+    # y0 = √(R² − (W/2)²) from the bore center; the floor sits at radius
+    # R + d. Each side wall spans y0 → R + d, so:
+    #     side_wall = (R + d) − y0     ⇒     d = side_wall + y0 − R
+    # `plane_pair` offsets won't carry `d` directly (the keyway floor
+    # plane usually fuses with the bore wall, killing the pair), so this
+    # is the canonical depth source whenever the bank exposes the slot
+    # sketch in this form.
+    depth_cands: list[tuple[float, str]] = list(plane_pair_cands)
+    for entry in bank.feature_tree:
+        bore_r: float | None = None
+        line_lens: list[float] = []
+        for k, v in entry.properties.items():
+            if "CircleRadius" in k and bore_r is None:
+                bore_r = float(v)
+            elif "LineLength" in k:
+                line_lens.append(float(v))
+        if bore_r is None or len(line_lens) < 3:
+            continue
+        unique = sorted({round(ln, 6) for ln in line_lens})
+        if len(unique) < 2:
+            continue
+        side = unique[0]
+        width = unique[-1]
+        half_w = width / 2.0
+        if half_w >= bore_r:
+            # Implausible: keyway opening wider than the bore diameter.
+            continue
+        y0 = math.sqrt(bore_r * bore_r - half_w * half_w)
+        depth = side + y0 - bore_r
+        if depth > 0:
+            depth_cands.append((
+                depth,
+                f"keyway.depth_from_bore({entry.name}: "
+                f"R={bore_r:g}, W={width:g}, side={side:g})",
+            ))
+
     count_cands: list[tuple[float, str]] = [
         (float(c.count), f"{c.id}.count") for c in bank.cylinder_clusters
     ]
@@ -169,8 +213,10 @@ def derived_candidates(
             if canonical is None:
                 continue
 
-            if canonical in ("width", "depth"):
+            if canonical == "width":
                 pool = plane_pair_cands
+            elif canonical == "depth":
+                pool = depth_cands
             elif canonical == "length":
                 pool = length_cands
             elif canonical == "count":
