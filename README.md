@@ -66,7 +66,9 @@ freecad-validator validate my_model.FCStd ground_truth.FCStd spec.json
 ```
 
 `freecad-validator` is the package's entry-point; `--help` shows
-`validate`, `batch`, and `join` subcommands.
+`validate`, `batch`, `join`, and `render` subcommands. (`render`
+rasterizes a `.FCStd` to a PNG and needs the optional `[render]`
+extra — see [Install](#install).)
 
 ### Python
 
