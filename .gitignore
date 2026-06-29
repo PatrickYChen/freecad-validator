@@ -27,3 +27,4 @@ htmlcov/
 # Sphinx / mkdocs
 site/
 _build/
+sample-data/
