@@ -26,6 +26,11 @@ class StructuredSpec(BaseModel):
     # ``thread_class = 6H``. Only simple bare identifiers go here; any
     # value with whitespace / math / units flows to scalars or counts.
     strings: dict[str, str] = Field(default_factory=dict)
+    # Optional part-family opt-in from the spec's ``categories`` field
+    # (e.g. ``["gear"]``). Activates the matching per-domain
+    # :class:`Category` refinements. When empty, the checker falls back
+    # to name-based auto-detection. Names are normalized to lowercase.
+    categories: list[str] = Field(default_factory=list)
     # Populated by the optional LLM fallback. The regex-only
     # path leaves this empty; the classifier must tolerate that.
     expected_features: list[str] = Field(default_factory=list)

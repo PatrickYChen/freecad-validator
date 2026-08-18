@@ -22,6 +22,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from freecad_validator.consistency.categories.base import _reclassify_against
+from freecad_validator.consistency.categories.registry import resolve_categories
 from freecad_validator.consistency.checks import (
     DEFAULT_REGISTRY,
     CheckRegistry,
@@ -150,10 +151,26 @@ class ConsistencyChecker:
         all_features |= {c.id for c in bank.cylinder_clusters}
         report.unexpected_features = sorted(all_features - claimed)
 
+        # --- Built-in category refinement -------------------------------
+        # Activate the per-domain categories that apply to this case —
+        # from the spec's explicit ``categories`` field, else inferred
+        # from the part name (see ``resolve_categories``). This is what
+        # lets a gear's derived params (pitch_diameter, module, addendum,
+        # …) reclassify without a hand-written ``param_check.py``. Each
+        # category no-ops when its geometry isn't present, and
+        # reclassification can only raise a finding to ``consistent``,
+        # never demote one — so an over-eager match can't lower a score.
+        for category in resolve_categories(structured):
+            try:
+                category.apply(report, bank, structured, self.tolerances.tol_scalar)
+            except Exception as exc:  # a bad category must not sink the case
+                log.warning("category %s failed for %s: %s: %s",
+                            category.name, fcstd_path_s, type(exc).__name__, exc)
+
         # --- Per-case category refinement -------------------------------
-        # If the case ships a ``param_check.py`` next to its FCStd, run
-        # it for category-level reclassification. Two contracts are
-        # supported:
+        # If the case ALSO ships a ``param_check.py`` next to its FCStd,
+        # run it last so a hand-authored file can override or extend the
+        # built-in categories above. Two contracts are supported:
         #   * ``apply(report, bank, spec, tol_scalar)`` — full control;
         #     used by composite param_check files that chain multiple
         #     Category subclasses.

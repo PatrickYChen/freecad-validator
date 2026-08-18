@@ -168,8 +168,28 @@ the caller:
 | `reference_fcstd` | ground-truth `.FCStd` |
 | `spec_json` | spec JSON with `name`, `description`, `key_parameters` |
 
-Optional spec field `categories: ["gear", ...]` opts into
-family-specific checks.
+### Part-family categories
+
+Many spec params have no directly-measurable face — a spur gear's
+`pitch_diameter`, `gear_module`, `addendum`, `dedendum`,
+`circular_pitch`, and `tooth_thickness` are *derived* quantities, not
+edges the generic checks can anchor to. The validator ships per-family
+**categories** (gear, hex, washer, pin, spline, flange_plate, …) that
+derive these from the measured geometry, so a correct model scores
+them `consistent` instead of `not_found`.
+
+Categories activate automatically — no per-case file needed:
+
+* **Explicit** — set `categories: ["gear", ...]` on the spec JSON to
+  opt a case into specific families.
+* **Auto-detected** — when the spec omits `categories`, the family is
+  inferred from the part `name` (e.g. `"spur gear"` → gear). Existing
+  specs benefit with no edits.
+
+A category only reclassifies params it can derive from the present
+geometry and can only move a finding *toward* `consistent`, never
+away — so activating one never lowers a score. A case may still ship a
+`param_check.py` (below) to override or extend the built-in categories.
 
 ### `param_check.py` auto-discovery
 

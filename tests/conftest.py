@@ -19,7 +19,18 @@ import pytest
 
 
 def _real_freecad_importable() -> bool:
-    """True iff a real FreeCAD module loads (not our stub)."""
+    """True iff a real FreeCAD module loads (not our stub).
+
+    Routes through the package's own ``_freecad_loader`` first so that
+    ``needs_freecad`` tests run on any host where the validator itself
+    can find FreeCAD (e.g. a Homebrew ``FreeCAD.app`` that isn't on the
+    default ``sys.path``) — matching how the package resolves FreeCAD at
+    runtime, rather than only when it happens to be import-visible."""
+    try:
+        from freecad_validator._freecad_loader import import_freecad
+        import_freecad()
+    except Exception:
+        pass  # fall through to a plain import attempt
     try:
         import FreeCAD  # type: ignore
     except Exception:

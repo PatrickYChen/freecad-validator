@@ -249,7 +249,25 @@ def parse_spec(spec: dict[str, str]) -> StructuredSpec:
         vectors=vectors,
         counts=counts,
         strings=strings,
+        categories=_parse_categories(spec.get("categories")),
     )
+
+
+def _parse_categories(raw: object) -> list[str]:
+    """Normalize the optional ``categories`` spec field to a lowercase
+    list. Accepts a JSON list (``["gear", "hex"]``) or a single/comma-
+    separated string (``"gear"`` / ``"gear, hex"``); anything else
+    (``None``, numbers) yields an empty list so a malformed field never
+    raises."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        parts = raw.split(",")
+    elif isinstance(raw, (list, tuple)):
+        parts = [str(x) for x in raw]
+    else:
+        return []
+    return [p.strip().lower() for p in parts if str(p).strip()]
 
 
 def load_spec_json(path: str | Path) -> dict[str, str]:
